@@ -3,6 +3,7 @@
 #include <X11/XKBlib.h>
 #include <X11/Xutil.h>
 #include <unistd.h>
+#include <err.h>
 #define MAX(a,b) (a > b ? a : b)
 
 Display *d;
@@ -23,7 +24,7 @@ void exec(Display *d, char* arg[]) {
         setsid();
 
         int status = execvp(arg[0], arg);
-        if(status < 1) __builtin_printf("Error");
+        if(status < 1) errx(1, "Error");
     }
 }
 
@@ -103,7 +104,7 @@ int main(void) {
                 break;           break;
             case KeyRelease:
                 break;
-            default: __builtin_printf("1");
+            default: errx(1, "Error: ");
         }
     }
 }
