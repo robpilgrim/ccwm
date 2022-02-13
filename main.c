@@ -12,7 +12,8 @@ XEvent ev;
 XKeyEvent kev;
 XButtonEvent bev;
 KeySym keysym;
-int true = 1;
+int done = 0;
+
 
 char* menu[] = {"dmenu_run", NULL};
 
@@ -26,22 +27,22 @@ void exec(Display *d, char* arg[]) {
     }
 }
 
+
 void keypress(Display *d, KeySym keysym, Window sw) {
 
    switch(keysym) {
        case XK_q:
-           if(ev.xkey.state & ((Mod4Mask | ShiftMask) == (Mod4Mask | ShiftMask))) {
-               true=0;
+           if(ev.xkey.state & ((Mod4Mask & ShiftMask)==1)) {
+               done = 1;
            }
-           else {
-               if(ev.xkey.subwindow){
-                    ev.xclient.type = ClientMessage;
-                    ev.xclient.window = sw;
-                    ev.xclient.format = 32;
-                    ev.xclient.data.l[0] = XInternAtom(d, "WM_DELETE_WINDOW",0);
-                    XSendEvent(d, sw, False, NoEventMask, &ev);
-               }
+           else if (ev.xkey.state & (((ShiftMask | ControlMask | Mod1Mask | Mod4Mask)) == (Mod4Mask))) {
+               ev.xclient.type = ClientMessage;
+               ev.xclient.window = sw;
+               ev.xclient.format = 32;
+               ev.xclient.data.l[0] = XInternAtom(d, "WM_DELETE_WINDOW",0);
+               XSendEvent(d, sw, False, NoEventMask, &ev);
            }
+           else NULL;
            break;
 
        case XK_d:
@@ -67,7 +68,7 @@ int main(void) {
 		XGrabButton(d, 3, Mod4Mask, root, True, ButtonPressMask, GrabModeAsync,GrabModeAsync, None, None);
 
     int xdiff, ydiff;
-    while(true) {
+    while(!done) {
         XNextEvent(d, &ev);
 
         if(ev.type == ButtonPress && ev.xbutton.subwindow != None)
@@ -80,26 +81,26 @@ int main(void) {
                 keypress(d, keysym,ev.xkey.subwindow);
                 break;
             case ButtonPress:
-								XGrabPointer(d, ev.xbutton.subwindow, True,
-									PointerMotionMask|ButtonReleaseMask, GrabModeAsync,
-									GrabModeAsync, None, None, CurrentTime);
+                XGrabPointer(d, ev.xbutton.subwindow, True,
+                        PointerMotionMask|ButtonReleaseMask, GrabModeAsync,
+                        GrabModeAsync, None, None, CurrentTime);
 
-								XGetWindowAttributes(d, ev.xbutton.subwindow, &xattr);
-								bev = ev.xbutton;
-								break;
-						case MotionNotify: 
-								while(XCheckTypedEvent(d, MotionNotify, &ev));
-								xdiff = ev.xbutton.x_root - bev.x_root;
-								ydiff = ev.xbutton.y_root - bev.y_root;
-								XMoveResizeWindow(d, ev.xmotion.window,
-								   	xattr.x + (bev.button==1 ? xdiff : 0),
-									xattr.y + (bev.button==1 ? ydiff : 0),
-									MAX(1, xattr.width + (bev.button==3 ? xdiff : 0)),
-									MAX(1, xattr.height + (bev.button==3 ? ydiff : 0)));
-								break;
-						case ButtonRelease:
-								XUngrabPointer(d,CurrentTime);
-								break;           break;
+                XGetWindowAttributes(d, ev.xbutton.subwindow, &xattr);
+                bev = ev.xbutton;
+                break;
+            case MotionNotify: 
+                while(XCheckTypedEvent(d, MotionNotify, &ev));
+                xdiff = ev.xbutton.x_root - bev.x_root;
+                ydiff = ev.xbutton.y_root - bev.y_root;
+                XMoveResizeWindow(d, ev.xmotion.window,
+                        xattr.x + (bev.button==1 ? xdiff : 0),
+                        xattr.y + (bev.button==1 ? ydiff : 0),
+                        MAX(1, xattr.width + (bev.button==3 ? xdiff : 0)),
+                        MAX(1, xattr.height + (bev.button==3 ? ydiff : 0)));
+                break;
+            case ButtonRelease:
+                XUngrabPointer(d,CurrentTime);
+                break;           break;
             case KeyRelease:
                 break;
             default: __builtin_printf("1");
