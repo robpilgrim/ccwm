@@ -26,19 +26,6 @@ void exec(Display *d, char* arg[]) {
     }
 }
 
-void win_fs(Display *d, Window sw) {
-
-      ev.xclient.type = ClientMessage;
-      ev.xclient.window = sw;
-      ev.xclient.format = 32;
-      ev.xclient.data.l[0] = 1;
-      ev.xclient.data.l[1] = XInternAtom(d, "_NET_WM_STATE_MAXIMIZED_HORZ", 0);
-      ev.xclient.data.l[2] = XInternAtom(d, "_NET_WM_STATE_MAXIMIZED_VERT", 0);
-      ev.xclient.data.l[3] = 1;
-
-      XSendEvent(d, DefaultRootWindow(d), False, SubstructureRedirectMask | SubstructureNotifyMask, &ev);
-    }
-
 void keypress(Display *d, KeySym keysym, Window sw) {
 
    switch(keysym) {
@@ -57,16 +44,9 @@ void keypress(Display *d, KeySym keysym, Window sw) {
            }
            break;
 
-
-
        case XK_d:
                exec(d, menu);
                break;
-
-       case XK_F:
-               win_fs(d, sw);
-               break;
-
 
        default: break;
    } 
