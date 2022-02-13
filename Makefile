@@ -2,7 +2,7 @@ DESTDIR=/usr
 st: main.c
 	$(CC) -O3 -Wall -Wextra -pedantic -lX11 -o ccwm $<
 
-install: cwm
+install: ccwm
 	cp -f ccwm "$(DESTDIR)$(PREFIX)/bin"
 	chmod 755 "$(DESTDIR)$(PREFIX)/bin/ccwm"
 

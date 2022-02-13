@@ -4,7 +4,10 @@
 #include <X11/Xutil.h>
 #include <unistd.h>
 #include <err.h>
+#include <stdio.h>
+#include <stdlib.h>
 #define MAX(a,b) (a > b ? a : b)
+#define TABLENGTH(X) (sizeof(X)/sizeof(*X))
 
 Display *d;
 Window root;
@@ -15,55 +18,83 @@ XButtonEvent bev;
 KeySym keysym;
 int done = 0;
 
+const char* menu[] = {"dmenu_run", NULL};
 
-char* menu[] = {"dmenu_run", NULL};
+void quit() {
+    done = 1;
+}
 
-void exec(Display *d, char* arg[]) {
-    if(fork()==0) {
-        if(d) close(ConnectionNumber(d));
-        setsid();
+typedef union {
+    const char** com;
+    const int i;
+} Arg;
 
-        int status = execvp(arg[0], arg);
-        if(status < 1) errx(1, "Error");
+struct key {
+    unsigned int mod;
+    KeySym keysym;
+    void (*function)(const Arg arg);
+    const Arg arg;
+};
+
+void close_window() {
+    ev.xclient.type = ClientMessage;
+    ev.xclient.window = ev.xkey.subwindow;
+    ev.xclient.format = 32;
+    ev.xclient.data.l[0] = XInternAtom(d, "WM_DELETE_WINDOW",0);
+    XSendEvent(d, ev.xkey.subwindow, False, NoEventMask, &ev);
+}
+
+
+void spawn(const Arg arg) {
+    if(fork() == 0) {
+        if(fork() == 0) {
+            if(d)
+                close(ConnectionNumber(d));
+
+            setsid();
+            execvp((char*)arg.com[0],(char**)arg.com);
+        }
+        exit(0);
     }
 }
 
+static struct key keys[] = {
+    {Mod4Mask | ShiftMask, XK_q, quit, {NULL}},
+    {Mod4Mask, XK_q, close_window, {NULL}},
+    {Mod4Mask, XK_d, spawn, {.com = menu}}
+};
 
-void keypress(Display *d, KeySym keysym, Window sw) {
+void grabkeys() {
+    long unsigned int i;
+    KeyCode code;
 
-   switch(keysym) {
-       case XK_q:
-           if(ev.xkey.state & ((Mod4Mask & ShiftMask)==1)) {
-               done = 1;
-           }
-           else if (ev.xkey.state & (((ShiftMask | ControlMask | Mod1Mask | Mod4Mask)) == (Mod4Mask))) {
-               ev.xclient.type = ClientMessage;
-               ev.xclient.window = sw;
-               ev.xclient.format = 32;
-               ev.xclient.data.l[0] = XInternAtom(d, "WM_DELETE_WINDOW",0);
-               XSendEvent(d, sw, False, NoEventMask, &ev);
-           }
-           else NULL;
-           break;
-
-       case XK_d:
-               exec(d, menu);
-               break;
-
-       default: break;
-   } 
+    // For each shortcuts
+    for(i=0;i<TABLENGTH(keys);++i) {
+        if((code = XKeysymToKeycode(d,keys[i].keysym))) {
+            XGrabKey(d,code,keys[i].mod,root,True,GrabModeAsync,GrabModeAsync);
+        }
+    }
 }
+
+void keypress(XEvent *e) {
+    long unsigned int i;
+    XKeyEvent ke = e->xkey;
+    KeySym keysym = XkbKeycodeToKeysym(d,ke.keycode,0,0);
+
+    for(i=0;i<TABLENGTH(keys);++i) {
+        if(keys[i].keysym == keysym && keys[i].mod == ke.state) {
+            keys[i].function(keys[i].arg);
+        }
+    }
+}
+
 
 int main(void) {
 
     if(!(d = XOpenDisplay(0x0))) return 1;
 
     root = DefaultRootWindow(d);
-
-    XGrabKey(d,XKeysymToKeycode(d,XStringToKeysym("d")),Mod4Mask,root,True,GrabModeAsync,GrabModeAsync);
-    XGrabKey(d,XKeysymToKeycode(d,XStringToKeysym("r")),Mod4Mask,root,True,GrabModeAsync,GrabModeAsync);
-    XGrabKey(d,XKeysymToKeycode(d,XStringToKeysym("f")),Mod4Mask,root,True,GrabModeAsync,GrabModeAsync);
-    XGrabKey(d,XKeysymToKeycode(d,XStringToKeysym("q")),AnyModifier,root,True,GrabModeAsync,GrabModeAsync);
+    grabkeys();
 
     XGrabButton(d, 1, Mod4Mask, root, True, ButtonPressMask, GrabModeAsync,GrabModeAsync, None, None);
 		XGrabButton(d, 3, Mod4Mask, root, True, ButtonPressMask, GrabModeAsync,GrabModeAsync, None, None);
@@ -79,7 +110,7 @@ int main(void) {
             case KeyPress:
                 kev = ev.xkey;
                 keysym  = XkbKeycodeToKeysym(d, kev.keycode,0,0);
-                keypress(d, keysym,ev.xkey.subwindow);
+                keypress(&ev);
                 break;
             case ButtonPress:
                 XGrabPointer(d, ev.xbutton.subwindow, True,
@@ -101,10 +132,10 @@ int main(void) {
                 break;
             case ButtonRelease:
                 XUngrabPointer(d,CurrentTime);
-                break;           break;
+                break;
             case KeyRelease:
                 break;
-            default: errx(1, "Error: ");
+            default: printf("ok");
         }
     }
 }
